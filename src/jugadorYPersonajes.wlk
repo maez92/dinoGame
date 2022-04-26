@@ -5,21 +5,18 @@ import main.*
 
 object dino {
 	var activo = true
-	var position = game.at(1,1)
+	var comioHuevo = false
+	var position = game.at(2,1)
 	var pasoActual = "dino1.png"
-	
 	method image() = pasoActual
 	method position() = position
-	
 	method position(nueva){
 		position = nueva
 	}
-	
 	method iniciar(){
 		activo = true
-		game.onTick(200,"cambiarPaso", {self.cambiarPaso()})
+		game.onTick(200,"cambiarPasoDino", {self.cambiarPaso()})
 	}
-	
 	method cambiarPaso() {
 		if (pasoActual == "dino1.png") {
 			pasoActual = "dino2.png"
@@ -28,23 +25,25 @@ object dino {
 			pasoActual = "dino1.png"
 		}
 	}
-	
-	method saltar(){
-		if(position.y() == 1) {
+	method comerHuevo() {
+		comioHuevo = true
+		game.say(self,"yummy!")
+	}
+	method saltar() {
+		if (activo and position.y() == 1) {
 			self.subir()
 			game.schedule(velocidad*3,{self.bajar()})
 		}
 	}
-	
-	method dobleSalto(){
-		if (position.y() == 2) {
-			game.schedule(velocidad*2,{self.subir()})
+	method dobleSalto() {
+		if(activo and comioHuevo and position.y() == 1) {
+			game.schedule(velocidad*3,{self.subir()})
 			game.schedule(velocidad*4,{self.subir()})
-			game.schedule(velocidad*8,{self.bajar()})
-			game.schedule(velocidad*12,{self.bajar()})
+			game.schedule(velocidad*10,{self.bajar()})
+			game.schedule(velocidad*11,{self.bajar()})
+			comioHuevo = false
 		}
 	}
-	
 	method subir(){
 		position = position.up(1)
 	}
@@ -53,7 +52,6 @@ object dino {
 	}
 	method detener(){
 		activo = false
-		game.removeTickEvent("cambiarPaso")
 	}
 	method activo() = activo
 }
@@ -83,40 +81,41 @@ object cactus {
 		juego.terminar()
 	}
 
+	method terminar() {
+		game.removeTickEvent("moverCactus")
+	}
 }
 
 // DINO LARGO ENEMIGO
 
 object dinoCuelloLargo {
-	const posicionInicial = game.at(game.width()-1,1)
+	const posicionInicial = game.at(game.width(),1)
 	var position = posicionInicial
-	var estaCerca = false
+	var activo = false
 	
 	method image() = "dinoCuelloLargoo.png"
 	method position() = position
 	
 	method iniciar() {
+		activo = true
 		position = posicionInicial
-		estaCerca = false
-		game.onTick(velocidad*3,"moverDinoCuelloLargo",{self.mover()})
+		game.onTick(velocidad,"moverDinoCuelloLargo",{self.mover()})
 	}
 	method mover() {
 		position = position.left(1)
-		if (position.x() == -1){
-			estaCerca = false
-			game.schedule(velocidad*50,{self.respawn()})
-		}
-		if (position.x() <= 4){
-			estaCerca = true
+		if (position.x() == -3){	//Si la llego al final, termina el tick
+			self.terminar()
+			activo = false
+			if (dino.activo()) {	//Si dino sigue activo espera 10000ms y reinicia el tick
+				game.schedule(10000,{self.iniciar()})
+			}
 		}
 	}
 	
-	method respawn(){
-		position = posicionInicial
-	}
-	
-	method estaCerca(){
-		return estaCerca
+	method terminar() {
+		if (activo) {
+			game.removeTickEvent("moverDinoCuelloLargo")
+		}
 	}
 	
 	method efectoDeColisionar(){
@@ -130,22 +129,23 @@ object dinoVolador {
 	const posicionInicial = game.at(-2,2)
 	var position = posicionInicial
 	var pasoActual = "dinoVolador1.png"
-	
 	method image() = pasoActual
 	method position() = position
-	
 	method iniciar() {
 		position = posicionInicial
-		game.onTick(velocidad*3,"moverDinoVolador",{self.mover()})
-		game.onTick(150,"cambiarPaso",{self.cambiarPaso()})
+		game.onTick(velocidad*2,"moverDinoVolador",{self.mover()})
+		game.onTick(150,"cambiarPasoDinoVolador",{self.cambiarPaso()})			
 	}
 	method mover() {
-		if (dinoCuelloLargo.estaCerca()){
-			position = position.right(1)
+		position = position.right(1)
+		if (position.x() == game.width()) {
+			position = posicionInicial
+			self.terminar()
+			game.schedule(3000,{self.iniciar()})
 		}
-		else {
-			self.respawn()
-		}
+	}
+	method subir() {
+		position = position.up(1)
 	}
 	method cambiarPaso(){
 		if (pasoActual == "dinoVolador1.png") {
@@ -154,15 +154,64 @@ object dinoVolador {
 		else {
 			pasoActual = "dinoVolador1.png"
 		}
-	}
-	
+	}	
 	method respawn() {
 		position = posicionInicial
 	}
-	
 	method efectoDeColisionar(){
-		dino.dobleSalto()
-		game.say(dino,"rawr!")
+		game.schedule(velocidad*2.5,{self.subir()})
+		game.schedule(velocidad*8,{huevo.iniciarCaida()})
+	}
+	method terminar() {
+		game.removeTickEvent("moverDinoVolador")
+		game.removeTickEvent("cambiarPasoDinoVolador")
+		huevo.terminar()
+	}
+	
+}
+
+object huevo {
+	var cayendo = false
+	var moviendo = false
+	const posicionInicial = game.at(5,3)
+	var position = posicionInicial
+	method image() = "huevo.png"
+	method position() = position
+	method iniciarCaida() {
+		if (dino.activo()) {
+			cayendo = true
+			game.addVisual(self)
+			game.onTick(velocidad,"huevoCayendo",{self.caer()})
+			game.schedule(velocidad*2.5,{
+				cayendo = false
+				game.removeTickEvent("huevoCayendo")
+				moviendo = true
+				game.onTick(velocidad,"huevoMover",{self.mover()})
+				}
+			)
+		}
+	}
+	method caer() {
+		position = position.down(1)
+	}
+	method mover() {
+		position = position.left(1)
+	}
+	method efectoDeColisionar() {
+		dino.comerHuevo()
+		self.terminar()
+	}
+	method terminar() {
+		if (cayendo) {
+			game.removeTickEvent("huevoCayendo")
+			game.removeVisual(self)
+			cayendo = false
+		}
+		else if (moviendo) {
+			game.removeTickEvent("huevoMover")
+			game.removeVisual(self)
+			moviendo = false
+		}
 	}
 }
 

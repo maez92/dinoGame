@@ -2,9 +2,7 @@ import wollok.game.*
 import main.* 
 
 program dino { 
-
 	juego.configurar()
 	juego.iniciar()
 	game.start()
-
 }
