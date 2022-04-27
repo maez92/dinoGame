@@ -1,5 +1,6 @@
 import wollok.game.*
-import jugadorYPersonajes.*
+import jugador.*
+import personajes.*
 
 const velocidad = 250
 
@@ -16,18 +17,18 @@ object juego{
 		game.addVisual(dinoVolador)
 		keyboard.enter().onPressDo{self.jugar()}
 		keyboard.space().onPressDo{dino.saltar()}
-		keyboard.alt().onPressDo{dino.dobleSalto()}
+		keyboard.alt().onPressDo{dino.saltoDoble()}
 		game.onCollideDo(dino,{objeto => objeto.efectoDeColisionar()})
 	}
 	method iniciar(){
 		dino.iniciar()
 		reloj.iniciar()
 		cactus.iniciar()
-		game.schedule(velocidad*10,{dinoVolador.iniciar()})
-		game.schedule(velocidad*50,{dinoCuelloLargo.iniciar()})
+		dinoVolador.iniciar()
+		dinoCuelloLargo.iniciar()
 	}
-	method jugar(){
-		if (not dino.activo()) {
+	method jugar()	{
+		if (not dino.estaVivo()) {
 			game.removeVisual(gameOver)
 			game.removeVisual(marcador)
 			self.iniciar()
@@ -35,11 +36,10 @@ object juego{
 	}
 	method terminar(){
 		cactus.terminar()
-		dinoCuelloLargo.terminar()
 		dinoVolador.terminar()
-		game.removeTickEvent("cambiarPasoDino")
+		dinoCuelloLargo.terminar()
 		game.removeTickEvent("tiempo")
-		marcador.comprobarTiempo(reloj.tiempoLogrado())
+		marcador.comprobarTiempo(reloj.tiempo())
 		game.addVisual(gameOver)
 		game.addVisual(marcador)
 		dino.detener()
@@ -61,9 +61,6 @@ object reloj {
 	method iniciar(){
 		tiempo = 0
 		game.onTick(100,"tiempo",{self.pasarTiempo()})
-	}
-	method tiempoLogrado(){
-		return tiempo
 	}
 	method tiempo() {
 		return tiempo
